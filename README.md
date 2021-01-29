@@ -1,3 +1,4 @@
+相比于mike的原项目做了一些修改，增加了语音控制机器狗的功能。
 # Spot Micro Quadruped Project
 
 ![Spot Micro Walking](assets/spot_micro_walking.gif)
