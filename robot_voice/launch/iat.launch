@@ -1,0 +1,4 @@
+<launch>
+    <node name="iat_record_p" pkg="voice_synthesis" type="iat_record_p" output="screen"/>
+    <node name="iat_record_s" pkg="voice_synthesis" type="iat_record_s" output="screen"/>
+</launch>
