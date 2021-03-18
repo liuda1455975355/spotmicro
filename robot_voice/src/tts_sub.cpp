@@ -4,14 +4,28 @@
 * 高效便捷手段，非常符合信息时代海量数据、动态更新和个性化查询的需求。
 */
 
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
+
 
 #include "qtts.h"
 #include "msp_cmn.h"
 #include "msp_errors.h"
+
+#include "ros/ros.h"
+#include "std_msgs/String.h"
+
+#include <sstream>
+#include <sys/types.h>
+#include <sys/stat.h>
+
+int wakeupflag =0;
+int voiceupflag =0;
+
 
 /* wav音频头部格式 */
 typedef struct _wave_pcm_hdr
@@ -104,7 +118,7 @@ int text_to_speech(const char* src_text, const char* des_path, const char* param
 			break;
 		printf(">");
 		usleep(150*1000); //防止频繁占用CPU
-	}
+	}//合成状态synth_status取值请参阅《讯飞语音云API文档》
 	printf("\n");
 	if (MSP_SUCCESS != ret)
 	{
@@ -133,6 +147,76 @@ int text_to_speech(const char* src_text, const char* des_path, const char* param
 	return ret;
 }
 
+void xfcallback(const std_msgs::String::ConstPtr& msg)
+{
+  char cmd[2000];
+  const char* text;
+  int         ret                  = MSP_SUCCESS;
+  const char* session_begin_params = "voice_name = xiaoyan, text_encoding = utf8, sample_rate = 16000, speed = 50, volume = 50, pitch = 50, rdn = 2";
+  const char* filename             = "tts_sample.wav"; //合成的语音文件名称
+  
+
+if (wakeupflag)
+{
+	if(voiceupflag)
+	{
+  		std::cout<<"I heard :"<<msg->data.c_str()<<std::endl;
+ 		text = msg->data.c_str(); 
+  		/* 文本合成 */
+  		printf("开始合成 ...\n");
+  		ret = text_to_speech(text, filename, session_begin_params);
+	}
+	else
+	{
+		std::stringstream ss;
+        ss << "nothing";   
+		text = ss.str();
+		/* 文本合成 */
+  		printf("开始合成 ...\n");
+  		ret = text_to_speech(text, filename, session_begin_params);
+	}
+  if (MSP_SUCCESS != ret)
+  {
+       printf("text_to_speech failed, error code: %d.\n", ret);
+  }
+  printf("合成完毕\n");
+
+
+  unlink("/tmp/cmd");  
+  mkfifo("/tmp/cmd", 0777);  
+  popen("mplayer -quiet -slave -input file=/tmp/cmd 'tts_sample.wav'","r");
+  sleep(2);
+  printf("Mplayer Run Success\n");
+}
+wakeupflag=0;
+voiceupflag=0;
+}
+
+void toPlay()
+{
+
+}
+void wake()
+{
+	printf("starting");
+	usleep(700*1000);
+	wakeupflag=1;
+}
+
+void voice_tts()
+{
+	printf("start tts");
+	usleep(700*1000);
+	voiceupflag=1;
+}
+
+void toExit()
+{
+    printf("按任意键退出 ...\n");
+    getchar();
+    MSPLogout(); //退出登录
+}
+
 int main(int argc, char* argv[])
 {
 	int         ret                  = MSP_SUCCESS;
@@ -146,31 +230,25 @@ int main(int argc, char* argv[])
 	* sample_rate:   合成音频采样率
 	* text_encoding: 合成文本编码格式
 	*
+	* 详细参数说明请参阅《讯飞语音云MSC--API文档》
 	*/
-	const char* session_begin_params = "voice_name = xiaoyan, text_encoding = utf8, sample_rate = 16000, speed = 50, volume = 50, pitch = 50, rdn = 2";
-	const char* filename             = "ding.wav"; //合成的语音文件名称
-	const char* text                 = "您好"; //合成文本
 
 	/* 用户登录 */
-	ret = MSPLogin(NULL, NULL, login_params);//第一个参数是用户名，第二个参数是密码，第三个参数是登录参数，用户名和密码可在http://www.xfyun.cn注册获取
+	ret = MSPLogin(NULL, NULL, login_params);//第一个参数是用户名，第二个参数是密码，第三个参数是登录参数，用户名和密码可在http://open.voicecloud.cn注册获取
 	if (MSP_SUCCESS != ret)
 	{
 		printf("MSPLogin failed, error code: %d.\n", ret);
-		goto exit ;//登录失败，退出登录
+		/*goto exit ;*///登录失败，退出登录
+        toExit();
 	}
-	printf("\n###########################################################################\n");
-	printf("## 语音合成（Text To Speech，TTS）技术能够自动将任意文字实时转换为连续的 ##\n");
-	printf("## 自然语音，是一种能够在任何时间、任何地点，向任何人提供语音信息服务的  ##\n");
-	printf("## 高效便捷手段，非常符合信息时代海量数据、动态更新和个性化查询的需求。  ##\n");
-	printf("###########################################################################\n\n");
-	/* 文本合成 */
-	printf("开始合成 ...\n");
-	ret = text_to_speech(text, filename, session_begin_params);
-	if (MSP_SUCCESS != ret)
-	{
-		printf("text_to_speech failed, error code: %d.\n", ret);
-	}
-	printf("合成完毕\n");
+    ros::init(argc,argv,"xf_tts");
+    ros::NodeHandle n;
+	ros::Subscriber wakeUpSub = n.subscribe("/voice_system/wakeup_topic", 1000, wake);   
+	ros::Subscriber voiceUpSub = n.subscribe("voice_tts", 1000, voice_tts);   
+    ros::Subscriber sub =n.subscribe("voiceWords",1000,xfcallback);
+    ros::spin();
+
+
 
 exit:
 	printf("按任意键退出 ...\n");

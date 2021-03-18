@@ -58,6 +58,7 @@ class SpotMicroKeyboardControl():
         self.ros_pub_walk_cmd       = rospy.Publisher('/walk_cmd',Bool, queue_size=1)
         self.ros_pub_stand_cmd      = rospy.Publisher('/stand_cmd',Bool,queue_size=1)
         self.ros_pub_idle_cmd       = rospy.Publisher('/idle_cmd',Bool,queue_size=1)
+        
 
         #
 
@@ -112,7 +113,7 @@ class SpotMicroKeyboardControl():
         self.reset_all_motion_commands_to_zero()
         #publish the stand mode
         self.ros_pub_stand_cmd.publish(self._stand_event_cmd_msg)
-
+        ros_pub_tts_cmd      = rospy.Publisher('voice_tts',String,queue_size=10)
         rospy.Subscriber('voiceWords', String, callbackv)
 
         while not rospy.is_shutdown():
@@ -121,18 +122,22 @@ class SpotMicroKeyboardControl():
             time.sleep(1)
             if (stand_flag == 1):
                 self.ros_pub_stand_cmd.publish(self._stand_event_cmd_msg)
+                ros_pub_tts_cmd.publish(msg)
                 print('stand mode')
                 time.sleep(5)
                 stand_flag = 0
 
             elif(idle_flag):
                 self.ros_pub_idle_cmd.publish(self._idle_event_cmd_msg)
+                self.ros_pub_tts_cmd.publish(msg)
+              
                 print('idle mode')
                 idle_flag = 0
             
             elif(walk_flag):
 
                 self.ros_pub_stand_cmd.publish(self._stand_event_cmd_msg)
+                self.ros_pub_tts_cmd.publish(msg)
                 time.sleep(1)
                 self.reset_all_motion_commands_to_zero()
                 self.ros_pub_walk_cmd.publish(self._walk_event_cmd_msg)

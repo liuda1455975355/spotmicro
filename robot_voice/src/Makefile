@@ -4,7 +4,7 @@ DIR_INC = /home/raspberry/spotmicro/src/spotMicro/robot_voice/include
 DIR_BIN = /home/raspberry/spotmicro/src/spotMicro/robot_voice/bin
 DIR_LIB = /home/raspberry/spotmicro/src/spotMicro/robot_voice/libs
 
-TARGET	= iat_publish
+TARGET	= tts_online_sample
 BIN_TARGET = $(DIR_BIN)/$(TARGET)
 
 CROSS_COMPILE = 
